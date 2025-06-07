@@ -5,7 +5,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
-import { EnvConfig } from '../config/environment.js';
+import { N8nApiConfig } from '../types/index.js';
 import { handleAxiosError, N8nApiError } from '../errors/index.js';
 
 /**
@@ -13,14 +13,14 @@ import { handleAxiosError, N8nApiError } from '../errors/index.js';
  */
 export class N8nApiClient {
   private axiosInstance: AxiosInstance;
-  private config: EnvConfig;
+  private config: N8nApiConfig;
 
   /**
    * Create a new n8n API client
    * 
    * @param config Environment configuration
    */
-  constructor(config: EnvConfig) {
+  constructor(config: N8nApiConfig) {
     this.config = config;
     this.axiosInstance = axios.create({
       baseURL: config.n8nApiUrl,
@@ -289,6 +289,6 @@ export class N8nApiClient {
  * @param config Environment configuration
  * @returns n8n API client instance
  */
-export function createApiClient(config: EnvConfig): N8nApiClient {
+export function createApiClient(config: N8nApiConfig): N8nApiClient {
   return new N8nApiClient(config);
 }
