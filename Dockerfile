@@ -14,4 +14,8 @@ COPY . .
 # Build the application
 RUN npm run build
 
-CMD ["node", "build/index.js"]
+USER node
+
+EXPOSE 3000
+
+CMD ["sh", "-c", "node build/index.js"]
