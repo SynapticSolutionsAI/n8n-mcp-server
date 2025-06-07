@@ -7,6 +7,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { N8nApiConfig } from '../types/index.js';
 import { handleAxiosError, N8nApiError } from '../errors/index.js';
+import { McpError } from '@modelcontextprotocol/sdk/types.js';
+import { ErrorCode } from '../errors/error-codes.js';
 
 /**
  * n8n API Client class for making requests to the n8n API
@@ -21,18 +23,24 @@ export class N8nApiClient {
    * @param config Environment configuration
    */
   constructor(config: N8nApiConfig) {
+    if (!config.n8nApiUrl || !config.n8nApiKey) {
+      throw new McpError(
+        ErrorCode.INVALID_CONFIGURATION,
+        'n8n API URL and API Key are required in the configuration.'
+      );
+    }
     this.config = config;
     this.axiosInstance = axios.create({
-      baseURL: config.n8nApiUrl,
+      baseURL: this.config.n8nApiUrl,
       headers: {
-        'X-N8N-API-KEY': config.n8nApiKey,
+        'X-N8N-API-KEY': this.config.n8nApiKey,
         'Accept': 'application/json',
       },
       timeout: 10000, // 10 seconds
     });
 
     // Add request debugging if debug mode is enabled
-    if (config.debug) {
+    if (this.config.debug) {
       this.axiosInstance.interceptors.request.use(request => {
         console.error(`[DEBUG] Request: ${request.method?.toUpperCase()} ${request.url}`);
         return request;

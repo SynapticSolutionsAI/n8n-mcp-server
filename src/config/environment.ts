@@ -59,39 +59,11 @@ export function getEnvConfig(): N8nApiConfig {
   const n8nWebhookPassword = process.env[ENV_VARS.N8N_WEBHOOK_PASSWORD];
   const debug = process.env[ENV_VARS.DEBUG]?.toLowerCase() === 'true';
 
-  // Validate required core environment variables
-  if (!n8nApiUrl) {
-    throw new McpError(
-      ErrorCode.InitializationError,
-      `Missing required environment variable: ${ENV_VARS.N8N_API_URL}`
-    );
-  }
-
-  if (!n8nApiKey) {
-    throw new McpError(
-      ErrorCode.InitializationError,
-      `Missing required environment variable: ${ENV_VARS.N8N_API_KEY}`
-    );
-  }
-
-  // N8N_WEBHOOK_USERNAME and N8N_WEBHOOK_PASSWORD are now optional at startup.
-  // Tools requiring them should perform checks at the point of use.
-
-  // Validate URL format
-  try {
-    new URL(n8nApiUrl);
-  } catch (error) {
-    throw new McpError(
-      ErrorCode.InitializationError,
-      `Invalid URL format for ${ENV_VARS.N8N_API_URL}: ${n8nApiUrl}`
-    );
-  }
-
   return {
     n8nApiUrl,
     n8nApiKey,
-    n8nWebhookUsername: n8nWebhookUsername || undefined, // Ensure undefined if empty
-    n8nWebhookPassword: n8nWebhookPassword || undefined, // Ensure undefined if empty
+    n8nWebhookUsername,
+    n8nWebhookPassword,
     debug,
   };
 }
