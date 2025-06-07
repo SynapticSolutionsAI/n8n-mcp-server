@@ -18,15 +18,17 @@ import { createApiService } from '../api/n8n-client.js';
 
 // Import types
 import { ToolCallResult } from '../types/index.js';
+import { N8nApiConfig } from '../types/index.js';
 
 /**
  * Configure and return an MCP server instance with all tools and resources
  * 
+ * @param config The configuration for the server.
  * @returns Configured MCP server instance
  */
-export async function configureServer(): Promise<Server> {
+export async function configureServer(config?: N8nApiConfig): Promise<Server> {
   // Get validated environment configuration
-  const envConfig = getEnvConfig();
+  const envConfig = config || getEnvConfig();
   
   // Create n8n API service
   const apiService = createApiService(envConfig);

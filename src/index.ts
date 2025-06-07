@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * n8n MCP Server - Main Entry Point
  * 
@@ -6,43 +5,53 @@
  * which allows AI assistants to interact with n8n workflows through the MCP protocol.
  */
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import express from 'express';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { loadEnvironmentVariables } from './config/environment.js';
 import { configureServer } from './config/server.js';
+import { parseDotNotation } from './utils/config.js';
+import { N8nApiConfig } from './types/index.js';
 
-// Load environment variables
+// Load environment variables from .env file
 loadEnvironmentVariables();
 
-/**
- * Main function to start the n8n MCP Server
- */
-async function main() {
+const app = express();
+app.use(express.json());
+
+const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+
+app.all('/mcp', async (req, res) => {
   try {
-    console.error('Starting n8n MCP Server...');
-
-    // Create and configure the MCP server
-    const server = await configureServer();
-
-    // Set up error handling
-    server.onerror = (error: unknown) => console.error('[MCP Error]', error);
-
-    // Set up clean shutdown
-    process.on('SIGINT', async () => {
-      console.error('Shutting down n8n MCP Server...');
-      await server.close();
-      process.exit(0);
+    const config = parseDotNotation(req.query);
+    const server = await configureServer(config as N8nApiConfig);
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless
     });
 
-    // Connect to the server transport (stdio)
-    const transport = new StdioServerTransport();
+    res.on('close', () => {
+      transport.close();
+      server.close();
+    });
+
     await server.connect(transport);
-
-    console.error('n8n MCP Server running on stdio');
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    console.error('Failed to start n8n MCP Server:', error);
-    process.exit(1);
+    console.error('Error handling MCP request:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: 'Internal server error',
+        },
+        id: null,
+      });
+    }
   }
-}
+});
 
-// Start the server
-main().catch(console.error);
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+  console.log(`n8n MCP Server listening on port ${port}`);
+});

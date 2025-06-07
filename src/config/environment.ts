@@ -10,6 +10,7 @@ import findConfig from 'find-config';
 import path from 'path';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
 import { ErrorCode } from '../errors/error-codes.js';
+import { N8nApiConfig } from '../types/index.js';
 
 // Environment variable names
 export const ENV_VARS = {
@@ -19,15 +20,6 @@ export const ENV_VARS = {
   N8N_WEBHOOK_PASSWORD: 'N8N_WEBHOOK_PASSWORD',
   DEBUG: 'DEBUG',
 };
-
-// Interface for validated environment variables
-export interface EnvConfig {
-  n8nApiUrl: string;
-  n8nApiKey: string;
-  n8nWebhookUsername?: string; // Made optional
-  n8nWebhookPassword?: string; // Made optional
-  debug: boolean;
-}
 
 /**
  * Load environment variables from .env file if present
@@ -60,7 +52,7 @@ export function loadEnvironmentVariables(): void {
  * @returns Validated environment configuration
  * @throws {McpError} If required environment variables are missing
  */
-export function getEnvConfig(): EnvConfig {
+export function getEnvConfig(): N8nApiConfig {
   const n8nApiUrl = process.env[ENV_VARS.N8N_API_URL];
   const n8nApiKey = process.env[ENV_VARS.N8N_API_KEY];
   const n8nWebhookUsername = process.env[ENV_VARS.N8N_WEBHOOK_USERNAME];

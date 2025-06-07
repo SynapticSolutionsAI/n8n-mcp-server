@@ -1,4 +1,29 @@
 version: 1
-start:
-  command: ["node", "build/index.js"]
-  port: 8000 
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+startCommand:
+  type: "http"
+  configSchema:
+    type: "object"
+    properties:
+      n8nApiUrl:
+        type: "string"
+        description: "The URL of the n8n API."
+      n8nApiKey:
+        type: "string"
+        description: "The API key for the n8n API."
+      n8nWebhookUsername:
+        type: "string"
+        description: "The username for webhook authentication."
+      n8nWebhookPassword:
+        type: "string"
+        description: "The password for webhook authentication."
+      debug:
+        type: "boolean"
+        description: "Enable debug logging."
+    required: ["n8nApiUrl", "n8nApiKey"]
+  exampleConfig:
+    n8nApiUrl: "https://n8n.example.com"
+    n8nApiKey: "sk-example123"

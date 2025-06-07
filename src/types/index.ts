@@ -53,3 +53,12 @@ export interface Execution {
   };
   [key: string]: any;
 }
+
+// Type for n8n API configuration
+export interface N8nApiConfig {
+  n8nApiUrl: string;
+  n8nApiKey: string;
+  n8nWebhookUsername?: string;
+  n8nWebhookPassword?: string;
+  debug?: boolean;
+}
