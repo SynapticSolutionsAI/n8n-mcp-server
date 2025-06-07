@@ -5,14 +5,13 @@
   "main": "build/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc && chmod +x build/index.js",
+    "build": "tsc",
     "start": "node build/index.js",
     "dev": "tsc -w",
     "lint": "eslint --ext .ts src/",
     "test": "node --experimental-vm-modules run-tests.js",
     "test:watch": "node --experimental-vm-modules run-tests.js --watch",
-    "test:coverage": "node --experimental-vm-modules run-tests.js --coverage",
-    "prepare": "npm run build"
+    "test:coverage": "node --experimental-vm-modules run-tests.js --coverage"
   },
   "bin": {
     "n8n-mcp-server": "build/index.js"
