@@ -10,7 +10,7 @@ import {
   ListResourceTemplatesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { EnvConfig } from '../config/environment.js';
+import { N8nApiConfig } from '../types/index.js';
 import { createApiService } from '../api/n8n-client.js';
 import { McpError, ErrorCode } from '../errors/index.js';
 
@@ -44,7 +44,7 @@ import {
  * @param server MCP server instance
  * @param envConfig Environment configuration
  */
-export function setupResourceHandlers(server: Server, envConfig: EnvConfig): void {
+export function setupResourceHandlers(server: Server, envConfig: N8nApiConfig): void {
   // Set up static resources
   setupStaticResources(server, envConfig);
 
@@ -58,7 +58,7 @@ export function setupResourceHandlers(server: Server, envConfig: EnvConfig): voi
  * @param server MCP server instance
  * @param envConfig Environment configuration
  */
-function setupStaticResources(server: Server, _envConfig: EnvConfig): void {
+function setupStaticResources(server: Server, _envConfig: N8nApiConfig): void {
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     // Return all available static resources
     return {
@@ -76,7 +76,7 @@ function setupStaticResources(server: Server, _envConfig: EnvConfig): void {
  * @param server MCP server instance
  * @param envConfig Environment configuration
  */
-function setupDynamicResources(server: Server, envConfig: EnvConfig): void {
+function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
   const apiService = createApiService(envConfig);
   
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {

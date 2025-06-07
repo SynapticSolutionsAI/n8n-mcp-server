@@ -5,7 +5,7 @@
  */
 
 import { N8nApiClient } from './client.js';
-import { EnvConfig } from '../config/environment.js';
+import { N8nApiConfig } from '../types/index.js';
 import { Workflow, Execution } from '../types/index.js';
 
 /**
@@ -19,7 +19,7 @@ export class N8nApiService {
    * 
    * @param config Environment configuration
    */
-  constructor(config: EnvConfig) {
+  constructor(config: N8nApiConfig) {
     this.client = new N8nApiClient(config);
   }
 
@@ -147,6 +147,6 @@ export class N8nApiService {
  * @param config Environment configuration
  * @returns n8n API service
  */
-export function createApiService(config: EnvConfig): N8nApiService {
+export function createApiService(config: N8nApiConfig): N8nApiService {
   return new N8nApiService(config);
 }
