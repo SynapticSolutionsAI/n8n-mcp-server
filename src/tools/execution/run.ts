@@ -36,6 +36,11 @@ export class RunWebhookHandler extends BaseExecutionToolHandler {
    */
   private getN8nBaseUrl(): string {
     const config = getEnvConfig();
+
+    if (!config.n8nApiUrl) {
+      throw new N8nApiError('n8n API URL is not configured.', 400);
+    }
+    
     const apiUrl = new URL(config.n8nApiUrl);
     
     // Remove /api/v1 if it exists in the path

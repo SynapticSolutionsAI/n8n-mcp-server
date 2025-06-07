@@ -25,7 +25,7 @@ export class N8nApiClient {
   constructor(config: N8nApiConfig) {
     if (!config.n8nApiUrl || !config.n8nApiKey) {
       throw new McpError(
-        ErrorCode.INVALID_CONFIGURATION,
+        ErrorCode.InitializationError,
         'n8n API URL and API Key are required in the configuration.'
       );
     }
