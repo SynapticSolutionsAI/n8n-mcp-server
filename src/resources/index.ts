@@ -77,7 +77,8 @@ function setupStaticResources(server: Server, _envConfig: N8nApiConfig): void {
  * @param envConfig Environment configuration
  */
 function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
-  const apiService = createApiService(envConfig);
+  // Create a lazy API service getter to avoid creating it during setup
+  const getApiService = () => createApiService(envConfig);
   
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
     // Return all available dynamic resource templates
@@ -96,7 +97,7 @@ function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
     try {
       // Handle static resources
       if (uri === getWorkflowsResourceUri()) {
-        const content = await getWorkflowsResource(apiService);
+        const content = await getWorkflowsResource(getApiService());
         return {
           contents: [
             {
@@ -109,7 +110,7 @@ function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
       }
       
       if (uri === getExecutionStatsResourceUri()) {
-        const content = await getExecutionStatsResource(apiService);
+        const content = await getExecutionStatsResource(getApiService());
         return {
           contents: [
             {
@@ -124,7 +125,7 @@ function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
       // Handle dynamic resources
       const workflowId = extractWorkflowIdFromUri(uri);
       if (workflowId) {
-        const content = await getWorkflowResource(apiService, workflowId);
+        const content = await getWorkflowResource(getApiService(), workflowId);
         return {
           contents: [
             {
@@ -138,7 +139,7 @@ function setupDynamicResources(server: Server, envConfig: N8nApiConfig): void {
       
       const executionId = extractExecutionIdFromUri(uri);
       if (executionId) {
-        const content = await getExecutionResource(apiService, executionId);
+        const content = await getExecutionResource(getApiService(), executionId);
         return {
           contents: [
             {
