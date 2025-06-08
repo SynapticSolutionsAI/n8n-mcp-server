@@ -13,7 +13,9 @@ import { getEnvConfig } from '../../config/environment.js';
  * Base class for execution tool handlers
  */
 export abstract class BaseExecutionToolHandler {
-  protected apiService = createApiService(getEnvConfig());
+  protected get apiService() {
+    return createApiService(getEnvConfig());
+  }
   
   /**
    * Validate and execute the tool

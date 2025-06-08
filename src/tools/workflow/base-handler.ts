@@ -13,7 +13,9 @@ import { getEnvConfig } from '../../config/environment.js';
  * Base class for workflow tool handlers
  */
 export abstract class BaseWorkflowToolHandler {
-  protected apiService = createApiService(getEnvConfig());
+  protected get apiService() {
+    return createApiService(getEnvConfig());
+  }
   
   /**
    * Validate and execute the tool
