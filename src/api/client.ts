@@ -23,21 +23,25 @@ export class N8nApiClient {
    * @param config Environment configuration
    */
   constructor(config: N8nApiConfig) {
-    if (!config.n8nApiUrl || !config.n8nApiKey) {
-      throw new McpError(
-        ErrorCode.InitializationError,
-        'n8n API URL and API Key are required in the configuration.'
-      );
-    }
     this.config = config;
-    this.axiosInstance = axios.create({
-      baseURL: this.config.n8nApiUrl,
-      headers: {
-        'X-N8N-API-KEY': this.config.n8nApiKey,
-        'Accept': 'application/json',
-      },
-      timeout: 10000, // 10 seconds
-    });
+    
+    // Only create axios instance if we have credentials
+    if (config.n8nApiUrl && config.n8nApiKey) {
+      this.axiosInstance = axios.create({
+        baseURL: this.config.n8nApiUrl,
+        headers: {
+          'X-N8N-API-KEY': this.config.n8nApiKey,
+          'Accept': 'application/json',
+        },
+        timeout: 10000, // 10 seconds
+      });
+    } else {
+      // Create a placeholder instance that will throw meaningful errors
+      this.axiosInstance = axios.create({
+        baseURL: 'http://placeholder',
+        timeout: 10000,
+      });
+    }
 
     // Add request debugging if debug mode is enabled
     if (this.config.debug) {
@@ -54,12 +58,28 @@ export class N8nApiClient {
   }
 
   /**
+   * Validate that we have the required credentials for API calls
+   * 
+   * @throws McpError if credentials are missing
+   */
+  private validateCredentials(): void {
+    if (!this.config.n8nApiUrl || !this.config.n8nApiKey) {
+      throw new McpError(
+        ErrorCode.InitializationError,
+        'n8n API URL and API Key are required. Please provide them in the configuration.'
+      );
+    }
+  }
+
+  /**
    * Check connectivity to the n8n API
    * 
    * @returns Promise that resolves if connectivity check succeeds
    * @throws N8nApiError if connectivity check fails
    */
   async checkConnectivity(): Promise<void> {
+    this.validateCredentials();
+    
     try {
       // Try to fetch health endpoint or workflows
       const response = await this.axiosInstance.get('/workflows');
@@ -95,6 +115,8 @@ export class N8nApiClient {
    * @returns Array of workflow objects
    */
   async getWorkflows(): Promise<any[]> {
+    this.validateCredentials();
+    
     try {
       const response = await this.axiosInstance.get('/workflows');
       return response.data.data || [];
@@ -110,6 +132,8 @@ export class N8nApiClient {
    * @returns Workflow object
    */
   async getWorkflow(id: string): Promise<any> {
+    this.validateCredentials();
+    
     try {
       const response = await this.axiosInstance.get(`/workflows/${id}`);
       return response.data;
@@ -124,6 +148,8 @@ export class N8nApiClient {
    * @returns Array of execution objects
    */
   async getExecutions(): Promise<any[]> {
+    this.validateCredentials();
+    
     try {
       const response = await this.axiosInstance.get('/executions');
       return response.data.data || [];
@@ -155,6 +181,8 @@ export class N8nApiClient {
    * @returns Execution result
    */
   async executeWorkflow(id: string, data?: Record<string, any>): Promise<any> {
+    this.validateCredentials();
+    
     try {
       const response = await this.axiosInstance.post(`/workflows/${id}/execute`, data || {});
       return response.data;

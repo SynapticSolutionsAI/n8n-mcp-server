@@ -47,10 +47,9 @@ export function loadEnvironmentVariables(): void {
 }
 
 /**
- * Validate and retrieve required environment variables
+ * Retrieve environment variables for n8n API configuration
  * 
- * @returns Validated environment configuration
- * @throws {McpError} If required environment variables are missing
+ * @returns Environment configuration (credentials may be undefined for lazy loading)
  */
 export function getEnvConfig(): N8nApiConfig {
   const n8nApiUrl = process.env[ENV_VARS.N8N_API_URL];
