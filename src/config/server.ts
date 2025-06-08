@@ -30,19 +30,6 @@ export async function configureServer(config?: N8nApiConfig): Promise<Server> {
   // Get validated environment configuration
   const envConfig = config || getEnvConfig();
   
-  // Create n8n API service
-  const apiService = createApiService(envConfig);
-  
-  // Verify n8n API connectivity
-  try {
-    console.error('Verifying n8n API connectivity...');
-    await apiService.checkConnectivity();
-    console.error(`Successfully connected to n8n API at ${envConfig.n8nApiUrl}`);
-  } catch (error) {
-    console.error('ERROR: Failed to connect to n8n API:', error instanceof Error ? error.message : error);
-    throw error;
-  }
-
   // Create server instance
   const server = new Server(
     {
