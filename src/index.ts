@@ -18,6 +18,23 @@ loadEnvironmentVariables();
 const app = express();
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'n8n-mcp-server' });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    message: 'n8n MCP Server', 
+    version: '0.1.3',
+    endpoints: {
+      health: '/health',
+      mcp: '/mcp'
+    }
+  });
+});
+
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
 app.all('/mcp', async (req, res) => {
@@ -50,8 +67,12 @@ app.all('/mcp', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT || '3000', 10);
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`n8n MCP Server listening on port ${port}`);
+  console.log(`Health check available at http://localhost:${port}/health`);
+}).on('error', (error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
