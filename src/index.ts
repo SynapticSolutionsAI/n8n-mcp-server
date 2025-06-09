@@ -5,7 +5,7 @@
  * which allows AI assistants to interact with n8n workflows through the MCP protocol.
  */
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { loadEnvironmentVariables } from './config/environment.js';
@@ -28,12 +28,12 @@ app.use(cors({
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', service: 'n8n-mcp-server' });
 });
 
 // MCP endpoint - this is the main endpoint that handles all MCP communication
-app.all('/mcp', async (req, res) => {
+app.all('/mcp', async (req: Request, res: Response) => {
   try {
     // Get configuration from query parameters
     const config = parseDotNotation(req.query);
@@ -75,7 +75,7 @@ app.all('/mcp', async (req, res) => {
 });
 
 // Catch-all for MCP-related paths
-app.all('/mcp/*', (req, res) => {
+app.all('/mcp/*', (req: Request, res: Response) => {
   res.status(404).json({
     jsonrpc: '2.0',
     error: {
@@ -87,7 +87,7 @@ app.all('/mcp/*', (req, res) => {
 });
 
 // Root endpoint - minimal response
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.status(200).json({ 
     service: 'n8n-mcp-server',
     version: '0.1.3',
@@ -101,7 +101,7 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`n8n MCP Server (streamable-http) listening on port ${port}`);
   console.log(`MCP endpoint available at http://localhost:${port}/mcp`);
   console.log(`Health check available at http://localhost:${port}/health`);
-}).on('error', (error) => {
+}).on('error', (error: Error) => {
   console.error('Failed to start server:', error);
   process.exit(1);
 });
