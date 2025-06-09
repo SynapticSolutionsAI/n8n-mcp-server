@@ -3,11 +3,15 @@
  * 
  * This file serves as the streamable HTTP entry point for the n8n MCP Server,
  * which allows AI assistants to interact with n8n workflows through the MCP protocol.
+ * 
+ * Updated to follow MCP specification 2025-03-26 - SSE transport deprecated, 
+ * using streamable HTTP as the recommended transport.
  */
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { loadEnvironmentVariables } from './config/environment.js';
 import { configureServer } from './config/server.js';
 import { parseDotNotation } from './utils/config.js';
@@ -22,205 +26,164 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  credentials: false
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', service: 'n8n-mcp-server' });
+  res.status(200).json({ 
+    status: 'ok', 
+    service: 'n8n-mcp-server',
+    version: '0.1.3',
+    protocol: 'MCP 2025-03-26',
+    transport: 'streamable-http'
+  });
 });
 
-// SSE endpoint for MCP communication - GET request establishes SSE connection
-app.get('/mcp/sse', async (req: Request, res: Response) => {
+/**
+ * Main MCP endpoint using streamable HTTP transport (recommended)
+ * Handles all MCP protocol communication according to latest specification
+ */
+app.all('/mcp', async (req: Request, res: Response) => {
+  let server: Server | undefined;
+  let transport: StreamableHTTPServerTransport | undefined;
+  
   try {
-    // Validate API key or config
+    // Get configuration from query parameters or headers
     const config = parseDotNotation(req.query);
+    
+    // Validate configuration
     if (!config || Object.keys(config).length === 0) {
       return res.status(400).json({
         jsonrpc: '2.0',
         error: {
           code: -32602,
-          message: 'Invalid params: Missing n8n configuration in query parameters'
+          message: 'Invalid params: Missing n8n configuration. Please provide n8n.baseUrl and n8n.apiKey in query parameters.'
         },
         id: null,
       });
     }
 
-    // Set up SSE headers
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, Mcp-Session-Id',
-      'X-Accel-Buffering': 'no'
+    // Create and configure the MCP server
+    server = await configureServer(config as N8nApiConfig);
+    
+    // Create streamable HTTP transport with proper session management
+    transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
     });
-
-    const sessionId = crypto.randomUUID();
-    res.setHeader('Mcp-Session-Id', sessionId);
-
-    // Send connection event
-    res.write(`data: ${JSON.stringify({
-      type: "connection",
-      id: `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    })}\n\n`);
-
-    // Send initialized notification
-    res.write(`data: ${JSON.stringify({
-      jsonrpc: "2.0",
-      method: "notifications/initialized",
-      params: {}
-    })}\n\n`);
-
-    // Keep connection alive with ping
-    const keepAlive = setInterval(() => {
+    
+    // Set up cleanup when connection closes
+    req.on('close', () => {
       try {
-        res.write(`: ping - ${new Date().toISOString()}\n\n`);
+        if (transport) transport.close();
+        if (server) server.close();
       } catch (error) {
-        clearInterval(keepAlive);
+        console.error('Error during cleanup:', error);
       }
-    }, 30000);
-
-    // Clean up on close
-    res.on('close', () => {
-      clearInterval(keepAlive);
     });
 
-    // Auto-close after 5 minutes
-    setTimeout(() => {
-      clearInterval(keepAlive);
-      if (!res.headersSent) {
-        res.end();
-      }
-    }, 300000);
-
-  } catch (error) {
-    console.error('Error setting up SSE:', error);
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: '2.0',
-        error: {
-          code: -32603,
-          message: 'Internal server error',
-          data: error instanceof Error ? error.message : 'Unknown error'
-        },
-        id: null,
-      });
-    }
-  }
-});
-
-// SSE endpoint for MCP communication - POST request for message handling
-app.post('/mcp/sse', async (req: Request, res: Response) => {
-  try {
-    // Get configuration from query parameters
-    const config = parseDotNotation(req.query);
-    
-    // Create and configure the MCP server
-    const server = await configureServer(config as N8nApiConfig);
-    
-    // Process the JSON-RPC request
-    const jsonRpcRequest = req.body;
-    
-    // Handle the MCP request directly
-    if (jsonRpcRequest.method === 'initialize') {
-      // Handle initialize request
-      const response = {
-        jsonrpc: '2.0',
-        id: jsonRpcRequest.id,
-        result: {
-          protocolVersion: '2024-11-05',
-          capabilities: {
-            tools: {},
-            resources: {}
-          },
-          serverInfo: {
-            name: 'n8n-mcp-server',
-            version: '0.1.3'
-          }
-        }
-      };
-      
-      res.setHeader('Mcp-Session-Id', req.headers['mcp-session-id'] || crypto.randomUUID());
-      return res.json(response);
-    }
-    
-    // For other requests, use the streamable transport
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-    });
-    
-    // Set up cleanup when connection closes
     res.on('close', () => {
-      transport.close();
-      server.close();
+      try {
+        if (transport) transport.close();
+        if (server) server.close();
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
     });
 
     // Connect server to transport
     await server.connect(transport);
     
-    // Handle the HTTP request through the transport
-    await transport.handleRequest(req, res, req.body);
+    // Log the request for debugging
+    console.log(`MCP Request: ${req.method} ${req.path} - Config: ${JSON.stringify(Object.keys(config))}`);
     
-  } catch (error) {
-    console.error('Error handling SSE POST request:', error);
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: '2.0',
-        error: {
-          code: -32603,
-          message: 'Internal server error',
-          data: error instanceof Error ? error.message : 'Unknown error'
-        },
-        id: null,
-      });
-    }
-  }
-});
-
-// MCP endpoint - this is the main endpoint that handles all MCP communication (streamable HTTP)
-app.all('/mcp', async (req: Request, res: Response) => {
-  try {
-    // Get configuration from query parameters
-    const config = parseDotNotation(req.query);
-    
-    // Create and configure the MCP server
-    const server = await configureServer(config as N8nApiConfig);
-    
-    // Create streamable HTTP transport with proper options
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-    });
-    
-    // Set up cleanup when connection closes
-    res.on('close', () => {
-      transport.close();
-      server.close();
-    });
-
-    // Connect server to transport
-    await server.connect(transport);
-    
-    // Handle the HTTP request through the transport
+    // Handle the HTTP request through the transport (this handles all MCP protocol logic)
     await transport.handleRequest(req, res, req.body);
     
   } catch (error) {
     console.error('Error handling MCP request:', error);
+    
+    // Clean up on error
+    try {
+      if (transport) transport.close();
+      if (server) server.close();
+    } catch (cleanupError) {
+      console.error('Error during error cleanup:', cleanupError);
+    }
+    
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
         error: {
           code: -32603,
           message: 'Internal server error',
-          data: error instanceof Error ? error.message : 'Unknown error'
+          data: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+          }
         },
         id: null,
       });
     }
   }
+});
+
+/**
+ * Legacy SSE endpoint for backward compatibility
+ * @deprecated SSE transport is deprecated as of MCP 2025-03-26. Use /mcp endpoint instead.
+ */
+app.get('/mcp/sse', async (req: Request, res: Response) => {
+  console.warn('WARNING: SSE transport is deprecated. Please use streamable HTTP at /mcp endpoint instead.');
+  
+  res.status(410).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32601,
+      message: 'SSE transport is deprecated. Please use streamable HTTP transport at /mcp endpoint.',
+      data: {
+        deprecated: true,
+        alternative: '/mcp',
+        transport: 'streamable-http',
+        specification: 'MCP 2025-03-26'
+      }
+    },
+    id: null,
+  });
+});
+
+/**
+ * Legacy SSE POST endpoint for backward compatibility
+ * @deprecated SSE transport is deprecated as of MCP 2025-03-26. Use /mcp endpoint instead.
+ */
+app.post('/mcp/sse', async (req: Request, res: Response) => {
+  console.warn('WARNING: SSE transport is deprecated. Please use streamable HTTP at /mcp endpoint instead.');
+  
+  res.status(410).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32601,
+      message: 'SSE transport is deprecated. Please use streamable HTTP transport at /mcp endpoint.',
+      data: {
+        deprecated: true,
+        alternative: '/mcp',
+        transport: 'streamable-http',
+        specification: 'MCP 2025-03-26'
+      }
+    },
+    id: null,
+  });
+});
+
+// Handle preflight OPTIONS requests
+app.options('/mcp', (req: Request, res: Response) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.sendStatus(200);
 });
 
 // Catch-all for MCP-related paths
@@ -229,28 +192,78 @@ app.all('/mcp/*', (req: Request, res: Response) => {
     jsonrpc: '2.0',
     error: {
       code: -32601,
-      message: 'Method not found',
+      message: `Method not found: ${req.path}. Available endpoints: /mcp (streamable-http)`,
+      data: {
+        availableEndpoints: ['/mcp', '/health'],
+        requestedPath: req.path,
+        method: req.method
+      }
     },
     id: null,
   });
 });
 
-// Root endpoint - minimal response
+// Root endpoint - API information
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({ 
     service: 'n8n-mcp-server',
     version: '0.1.3',
-    mcp_endpoint: '/mcp'
+    description: 'Model Context Protocol server for n8n workflow automation',
+    protocol: 'MCP 2025-03-26',
+    transport: 'streamable-http',
+    endpoints: {
+      mcp: '/mcp',
+      health: '/health'
+    },
+    documentation: 'https://github.com/leonardsellem/n8n-mcp-server',
+    specification: 'https://modelcontextprotocol.io'
   });
 });
 
-const port = parseInt(process.env.PORT || '3000', 10);
+// Error handling middleware
+app.use((error: Error, req: Request, res: Response, next: Function) => {
+  console.error('Unhandled error:', error);
+  
+  if (!res.headersSent) {
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32603,
+        message: 'Internal server error',
+        data: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      id: null,
+    });
+  }
+});
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`n8n MCP Server (streamable-http) listening on port ${port}`);
-  console.log(`MCP endpoint available at http://localhost:${port}/mcp`);
-  console.log(`Health check available at http://localhost:${port}/health`);
+const port = parseInt(process.env.PORT || '3000', 10);
+const host = process.env.HOST || '0.0.0.0';
+
+const server = app.listen(port, host, () => {
+  console.log(`🚀 n8n MCP Server (streamable-http) listening on ${host}:${port}`);
+  console.log(`📋 MCP endpoint: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/mcp`);
+  console.log(`❤️  Health check: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/health`);
+  console.log(`📖 Specification: MCP 2025-03-26 (streamable-http transport)`);
+  console.log(`⚠️  Note: SSE transport is deprecated, use streamable-http instead`);
 }).on('error', (error: Error) => {
-  console.error('Failed to start server:', error);
+  console.error('❌ Failed to start server:', error);
   process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('📴 SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Process terminated');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('📴 SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Process terminated');
+    process.exit(0);
+  });
 });

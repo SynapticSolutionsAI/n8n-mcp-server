@@ -11,8 +11,8 @@ services:
         value: production
       - key: PORT
         value: 10000
-    numInstances: 1
-    routes:
-      - type: redirect
-        source: /*
-        destination: https://n8n-mcp-server.onrender.com/$1 
+      - key: N8N_BASE_URL
+        value: https://n8n.boris-spiegl.workers.dev/api/v1
+      - key: N8N_API_KEY
+        value: tGhOC7BxdXn3a0LbVLOpjZe06oTJuKQ8pI4lYRz6n8c
+    numInstances: 1 
