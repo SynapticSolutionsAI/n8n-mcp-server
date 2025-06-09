@@ -1,0 +1,13 @@
+name = "n8n-mcp-proxy"
+main = "build/worker-proxy.js"
+compatibility_date = "2024-11-06"
+compatibility_flags = ["nodejs_compat"]
+
+workers_dev = true
+
+[vars]
+MCP_TARGET_URL = "https://n8n-mcp-server.boris-spiegl.workers.dev/mcp"
+MCP_API_KEY = "mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s"
+
+[build]
+command = "npm run build:proxy" 

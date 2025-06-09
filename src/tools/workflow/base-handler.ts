@@ -4,7 +4,7 @@
  * This module provides a base handler for workflow-related tools.
  */
 
-import { ToolCallResult } from '../../types/index.js';
+import { ToolCallResult, N8nApiConfig } from '../../types/index.js';
 import { N8nApiError } from '../../errors/index.js';
 import { createApiService } from '../../api/n8n-client.js';
 import { getEnvConfig } from '../../config/environment.js';
@@ -13,8 +13,14 @@ import { getEnvConfig } from '../../config/environment.js';
  * Base class for workflow tool handlers
  */
 export abstract class BaseWorkflowToolHandler {
+  protected config: N8nApiConfig;
+
+  constructor(config?: N8nApiConfig) {
+    this.config = config || getEnvConfig();
+  }
+
   protected get apiService() {
-    return createApiService(getEnvConfig());
+    return createApiService(this.config);
   }
   
   /**

@@ -147,3 +147,142 @@ If you're still experiencing issues after trying these troubleshooting steps:
 3. **Community Support:**
    - Ask in the n8n community forums
    - Check MCP-related discussion groups
+
+## Common Issues and Solutions
+
+### 1. 401 Unauthorized Errors
+
+If you're getting 401 Unauthorized errors when connecting to the MCP proxy:
+
+**Problem**: The MCP Inspector is not sending the correct API key to authenticate with the proxy.
+
+**Solution**: 
+- Check that the `MCP_API_KEY` in `wrangler-mcp-proxy-fixed.toml` matches the key you're using
+- For MCP Inspector, add the API key as a header or query parameter:
+
+```bash
+# Option 1: Using query parameter
+npx @modelcontextprotocol/inspector \
+  --url "https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/mcp/sse?apiKey=mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s"
+
+# Option 2: Using header (if supported by your MCP client)
+curl -H "X-API-Key: mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s" \
+  "https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/mcp/sse"
+```
+
+### 2. PowerShell Environment Variable Issues
+
+**Problem**: PowerShell is interpreting escaped quotes incorrectly.
+
+**Incorrect**:
+```powershell
+$env:CLIENT_PORT = \"8276\"; npx @modelcontextprotocol/inspector
+```
+
+**Correct**:
+```powershell
+$env:CLIENT_PORT = "8276"; npx @modelcontextprotocol/inspector
+```
+
+Or use single quotes:
+```powershell
+$env:CLIENT_PORT = '8276'; npx @modelcontextprotocol/inspector
+```
+
+### 3. Port Already in Use
+
+**Problem**: Port 6277 (or your specified port) is already in use.
+
+**Solution**:
+```powershell
+# Find what's using the port
+netstat -ano | findstr :6277
+
+# Kill the process if needed (replace PID with actual process ID)
+taskkill /PID <PID> /F
+
+# Or use a different port
+$env:CLIENT_PORT = "8278"; npx @modelcontextprotocol/inspector
+```
+
+### 4. MCP Inspector Argument Parsing Issues
+
+**Problem**: MCP Inspector fails with argument parsing errors like "Option '--env' argument is ambiguous"
+
+**Solution**: Use alternative methods to avoid PowerShell argument parsing issues:
+
+**Option 1: Using Batch File (Recommended)**
+```cmd
+# Run the simple batch file to avoid PowerShell issues
+scripts\start-mcp-inspector.cmd
+```
+
+**Option 2: Direct Command (PowerShell)**
+```powershell
+# Set port (optional)
+$env:CLIENT_PORT = "8276"
+
+# Use streamable-http transport (SSE is deprecated)
+npx @modelcontextprotocol/inspector "https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/mcp?apiKey=mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s"
+```
+
+**Option 3: Command Prompt**
+```cmd
+set CLIENT_PORT=8276
+npx @modelcontextprotocol/inspector "https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/mcp?apiKey=mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s"
+```
+
+**Note**: SSE transport is deprecated. Use the `/mcp` endpoint (streamable-http) instead of `/mcp/sse`.
+
+### 5. Testing the MCP Server
+
+To verify your MCP server is working:
+
+```bash
+# Test health endpoint
+curl https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/health
+
+# Test MCP endpoint with API key
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+  https://n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/mcp
+```
+
+### 6. Local Development
+
+For local development, you can run the server locally:
+
+```powershell
+# Build the project
+npm run build
+
+# Start the local server
+npm start
+
+# Or for development with hot reload
+npm run dev
+```
+
+Then connect MCP Inspector to your local server:
+```powershell
+npx @modelcontextprotocol/inspector --url "http://localhost:3000/mcp"
+```
+
+### 7. Environment Variables
+
+Make sure all required environment variables are set in your deployment:
+
+- `N8N_BASE_URL`: Your n8n instance URL
+- `N8N_API_KEY`: Your n8n API key
+- `MCP_API_KEY`: The API key for MCP authentication
+
+### 8. Debugging
+
+Enable debug logging by setting:
+```powershell
+$env:DEBUG = "mcp:*"
+```
+
+This will provide more detailed logs about the MCP communication.

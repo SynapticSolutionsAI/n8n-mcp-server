@@ -1,0 +1,13 @@
+{
+  "install": "npm install",
+  "start": "npm run build && npm start",
+  "watch": {
+    "ignore": [
+      "\\.git",
+      "node_modules",
+      "build",
+      "dist"
+    ]
+  },
+  "throttle": 1000
+} 

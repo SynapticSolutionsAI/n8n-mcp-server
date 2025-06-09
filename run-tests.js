@@ -22,11 +22,12 @@ console.log('🧪 Running tests for n8n MCP Server...');
 const args = process.argv.slice(2);
 const jestArgs = ['--config', './jest.config.cjs', ...args];
 
-// Spawn Jest process
-const jestProcess = spawn('node_modules/.bin/jest', jestArgs, {
+// Spawn Jest process using npx for better cross-platform compatibility
+const jestProcess = spawn('npx', ['jest', ...jestArgs], {
   stdio: 'inherit',
   cwd: __dirname,
-  env: { ...process.env, NODE_ENV: 'test' }
+  env: { ...process.env, NODE_ENV: 'test' },
+  shell: true
 });
 
 // Handle process events

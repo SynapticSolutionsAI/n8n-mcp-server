@@ -1,11 +1,12 @@
 /**
- * n8n MCP Server - Main Entry Point
+ * n8n MCP Server - Streamable HTTP Entry Point
  * 
- * This file serves as the entry point for the n8n MCP Server,
+ * This file serves as the streamable HTTP entry point for the n8n MCP Server,
  * which allows AI assistants to interact with n8n workflows through the MCP protocol.
  */
 
 import express from 'express';
+import cors from 'cors';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { loadEnvironmentVariables } from './config/environment.js';
 import { configureServer } from './config/server.js';
@@ -16,6 +17,14 @@ import { N8nApiConfig } from './types/index.js';
 loadEnvironmentVariables();
 
 const app = express();
+
+// Enable CORS for all origins (required for MCP Inspector and cross-origin requests)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json());
 
 // Health check endpoint
@@ -23,35 +32,32 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'n8n-mcp-server' });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.status(200).json({ 
-    message: 'n8n MCP Server', 
-    version: '0.1.3',
-    endpoints: {
-      health: '/health',
-      mcp: '/mcp'
-    }
-  });
-});
-
-const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-
+// MCP endpoint - this is the main endpoint that handles all MCP communication
 app.all('/mcp', async (req, res) => {
   try {
+    // Get configuration from query parameters
     const config = parseDotNotation(req.query);
+    
+    // Create and configure the MCP server
     const server = await configureServer(config as N8nApiConfig);
+    
+    // Create streamable HTTP transport with proper options
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // stateless
+      sessionIdGenerator: () => crypto.randomUUID(),
     });
-
+    
+    // Set up cleanup when connection closes
     res.on('close', () => {
       transport.close();
       server.close();
     });
 
+    // Connect server to transport
     await server.connect(transport);
+    
+    // Handle the HTTP request through the transport
     await transport.handleRequest(req, res, req.body);
+    
   } catch (error) {
     console.error('Error handling MCP request:', error);
     if (!res.headersSent) {
@@ -60,6 +66,7 @@ app.all('/mcp', async (req, res) => {
         error: {
           code: -32603,
           message: 'Internal server error',
+          data: error instanceof Error ? error.message : 'Unknown error'
         },
         id: null,
       });
@@ -67,10 +74,32 @@ app.all('/mcp', async (req, res) => {
   }
 });
 
+// Catch-all for MCP-related paths
+app.all('/mcp/*', (req, res) => {
+  res.status(404).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32601,
+      message: 'Method not found',
+    },
+    id: null,
+  });
+});
+
+// Root endpoint - minimal response
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    service: 'n8n-mcp-server',
+    version: '0.1.3',
+    mcp_endpoint: '/mcp'
+  });
+});
+
 const port = parseInt(process.env.PORT || '3000', 10);
 
 app.listen(port, '0.0.0.0', () => {
-  console.log(`n8n MCP Server listening on port ${port}`);
+  console.log(`n8n MCP Server (streamable-http) listening on port ${port}`);
+  console.log(`MCP endpoint available at http://localhost:${port}/mcp`);
   console.log(`Health check available at http://localhost:${port}/health`);
 }).on('error', (error) => {
   console.error('Failed to start server:', error);

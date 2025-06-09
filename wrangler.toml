@@ -1,6 +1,6 @@
 name = "n8n-mcp-server"
-main = "build/worker.js"
-compatibility_date = "2024-11-01"
+main = "build/worker-simple.js"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [build]
@@ -10,9 +10,12 @@ command = "npm run build"
 # Environment variables for the n8n MCP server
 # These can be overridden in the Cloudflare dashboard
 NODE_ENV = "production"
+DEBUG = "false"
 
-# Secrets (set via wrangler secret put)
-# N8N_API_URL = "your-n8n-instance-url"
+# Environment variables (set via wrangler secret put)
+# N8N_API_URL = "your-n8n-api-url"
 # N8N_API_KEY = "your-n8n-api-key"
 # N8N_WEBHOOK_USERNAME = "optional-webhook-username"
-# N8N_WEBHOOK_PASSWORD = "optional-webhook-password" 
+# N8N_WEBHOOK_PASSWORD = "optional-webhook-password"
+# DEBUG = "false"
+# MCP_AUTH_KEY = "your-mcp-authentication-key" # Optional: API key for MCP endpoint security 

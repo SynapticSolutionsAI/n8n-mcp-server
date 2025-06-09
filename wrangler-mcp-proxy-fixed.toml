@@ -1,0 +1,14 @@
+name = "n8n-mcp-proxy-fixed"
+main = "build/worker-mcp-proxy-fixed.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[env.production]
+name = "n8n-mcp-proxy-fixed"
+route = "n8n-mcp-proxy-fixed.boris-spiegl.workers.dev/*"
+
+[vars]
+N8N_BASE_URL = "https://n8n.boris-spiegl.workers.dev"
+N8N_API_KEY = "tGhOC7BxdXn3a0LbVLOpjZe06oTJuKQ8pI4lYRz6n8c"
+MCP_API_KEY = "mcp-n8n-8k2p9x4w7v5q3m6n1j8h5r2y9t4e6u3s" 

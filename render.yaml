@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: n8n-mcp-server
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    numInstances: 1
+    routes:
+      - type: redirect
+        source: /*
+        destination: https://n8n-mcp-server.onrender.com/$1 
